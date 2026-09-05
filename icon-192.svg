@@ -1,0 +1,34 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="round">
+      <rect x="0" y="0" width="512" height="512" rx="96" ry="96"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#round)">
+    <rect width="512" height="512" fill="#8a3b2f"/>
+
+    <!-- carton box -->
+    <g>
+      <!-- box body -->
+      <rect x="126" y="236" width="260" height="150" rx="10" fill="#faf7f2"/>
+      <!-- box flap shading -->
+      <path d="M126 246 L256 288 L386 246 L386 236 L256 236 L126 236 Z" fill="#e7ddc8"/>
+      <path d="M126 246 L256 288 L256 386 L126 386 Z" fill="#faf7f2"/>
+      <path d="M386 246 L256 288 L256 386 L386 386 Z" fill="#efe9db"/>
+      <!-- center seam -->
+      <line x1="256" y1="288" x2="256" y2="386" stroke="#c9c2b3" stroke-width="4"/>
+      <!-- tape -->
+      <rect x="240" y="236" width="32" height="150" fill="#8a3b2f" opacity="0.85"/>
+
+      <!-- stacked trays coming out of the box -->
+      <g>
+        <rect x="150" y="184" width="212" height="34" rx="6" fill="#faf7f2"/>
+        <rect x="150" y="184" width="212" height="34" rx="6" fill="none" stroke="#8a3b2f" stroke-width="6"/>
+        <rect x="166" y="150" width="180" height="34" rx="6" fill="#faf7f2"/>
+        <rect x="166" y="150" width="180" height="34" rx="6" fill="none" stroke="#8a3b2f" stroke-width="6"/>
+        <rect x="182" y="116" width="148" height="34" rx="6" fill="#faf7f2"/>
+        <rect x="182" y="116" width="148" height="34" rx="6" fill="none" stroke="#8a3b2f" stroke-width="6"/>
+      </g>
+    </g>
+  </g>
+</svg>

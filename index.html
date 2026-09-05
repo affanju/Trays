@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trays Calc">
+<meta name="theme-color" content="#faf7f2">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<title>Boxes of Trays Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{ --ink:#1c1c1c; --paper:#f6f3ec; --line:#e6e0d2; --accent:#8a3b2f; --accent-soft:#f7ece9; --good:#2e5c2e; --good-soft:#eef5ec; --warn:#8a6d1a; --warn-soft:#fdf6e3; }
+  *{box-sizing:border-box;}
+  body{ margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--paper); color:var(--ink); -webkit-font-smoothing:antialiased; }
+  header{ padding:20px 20px 16px; border-bottom:1px solid var(--line); background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.04); position:relative; z-index:10; }
+  header h1{ margin:0 0 4px; font-size:1.25rem; letter-spacing:-.01em; }
+  header p{ margin:0; color:#75706a; font-size:.82rem; line-height:1.5; }
+  header .nav-row{
+    display:flex; gap:4px; margin-top:14px; background:var(--paper); border:1px solid var(--line);
+    border-radius:12px; padding:4px;
+  }
+  header .nav-btn{
+    flex:1; text-align:center; padding:9px; border-radius:9px; font-size:.85rem; font-weight:600;
+    border:none; background:transparent; color:#75706a; cursor:pointer; font-family:inherit; transition:all .15s ease;
+  }
+  header .nav-btn.active{ background:var(--ink); color:#fff; box-shadow:0 1px 3px rgba(0,0,0,.15); }
+  .toolbar-secondary{ display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+  .icon-btn{
+    font-size:.76rem; padding:7px 12px; border:1px solid var(--line); border-radius:20px;
+    background:#fff; color:#55504a; cursor:pointer; font-family:inherit; font-weight:600;
+  }
+  .icon-btn:hover{ background:var(--paper); border-color:#d8d0bd; }
+
+  main{ padding:18px 16px 70px; max-width:560px; margin:0 auto; }
+
+  .search-wrap{ position:sticky; top:0; background:var(--paper); padding:0 0 12px; z-index:5; }
+  input, textarea, select{
+    font-size:1rem; padding:12px 14px; border:1.5px solid #d9d2c1; border-radius:11px;
+    background:#fff; color:var(--ink); width:100%; font-family:inherit;
+  }
+  input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--ink); }
+  .add-new-btn{
+    display:block; width:100%; margin-top:12px; padding:13px; background:var(--ink); color:#fff;
+    border:none; border-radius:12px; font-size:.95rem; font-weight:600; cursor:pointer; font-family:inherit;
+    box-shadow:0 2px 6px rgba(0,0,0,.12);
+  }
+  .add-new-btn:active{ transform:translateY(1px); }
+  .plist{ display:flex; flex-direction:column; gap:9px; }
+  .badge{ display:inline-block; padding:3px 11px; border-radius:20px; font-size:.74rem; font-weight:700; letter-spacing:.02em; }
+  .badge.aldi{ background:#f4e7b8; color:#6b5000; }
+  .badge.coles{ background:#f6d9d6; color:var(--accent); }
+  .badge.quitelike{ background:#dce8f0; color:#2e4a6b; }
+  .badge.unverified{ background:#ece7da; color:#8a8478; }
+  .badge.other{ background:#ece7da; color:#8a8478; }
+  .badge-select{
+    display:inline-block; width:auto; padding:3px 26px 3px 11px; border-radius:20px; font-size:.74rem;
+    font-weight:700; letter-spacing:.02em; border:none; cursor:pointer;
+    -webkit-appearance:none; appearance:none;
+    background-image:linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position:calc(100% - 14px) 55%, calc(100% - 9px) 55%; background-size:5px 5px; background-repeat:no-repeat;
+  }
+  .badge-select.aldi{ background-color:#f4e7b8; color:#6b5000; }
+  .badge-select.coles{ background-color:#f6d9d6; color:var(--accent); }
+  .badge-select.quitelike{ background-color:#dce8f0; color:#2e4a6b; }
+  .badge-select.unverified{ background-color:#ece7da; color:#8a8478; }
+  .badge-select.other{ background-color:#ece7da; color:#8a8478; }
+
+  .cgroup{ background:#fff; border:1px solid var(--line); border-radius:16px; overflow:hidden; margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+  .cgroup-head{ display:flex; align-items:center; gap:10px; padding:14px 16px; cursor:pointer; user-select:none; }
+  .cgroup-head .chev{ font-size:.7rem; color:#c9c2b3; transition:transform .15s ease; }
+  .cgroup.collapsed .chev{ transform:rotate(-90deg); }
+  .cgroup-head .gcount{ margin-left:auto; font-size:.78rem; color:#a39c8d; font-weight:500; }
+  .cgroup-list{ border-top:1px solid var(--line); }
+  .cgroup.collapsed .cgroup-list{ display:none; }
+  .subcat-head{ padding:9px 16px 6px; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#a39c8d; background:#fbf9f5; }
+  .prow{
+    display:flex; align-items:center; gap:12px; background:#fff; border:none; border-bottom:1px solid #f0ece3;
+    padding:12px 16px; text-align:left; cursor:pointer; font-family:inherit; color:var(--ink); width:100%;
+  }
+  .cgroup-list .prow:last-child{ border-bottom:none; }
+  .prow:active{ background:#faf8f3; transform:scale(.995); }
+  .prow-icon{
+    width:38px; height:38px; border-radius:10px; background:#f6f2e9; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:1.25rem;
+  }
+  .prow-body{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+  .prow .pname{ font-size:.95rem; font-weight:600; }
+  .prow .pname.empty{ font-style:italic; font-weight:400; color:#999; }
+  .prow .pmeta{ font-size:.76rem; color:#928d84; display:flex; gap:7px; align-items:center; flex-wrap:wrap; }
+  .prow .chevron{ color:#c9c2b3; font-size:1.1rem; flex-shrink:0; }
+  .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); display:inline-block; flex-shrink:0; }
+  .missing-pill{ font-size:.66rem; font-weight:600; background:var(--warn-soft); border:1px solid #ecdcae; color:var(--warn); padding:2px 8px; border-radius:20px; }
+  .empty-msg{ text-align:center; color:#999; padding:50px 10px; font-size:.9rem; }
+
+  .back-btn{
+    display:inline-flex; align-items:center; gap:6px; background:none; border:none; color:var(--accent);
+    font-size:.88rem; font-weight:600; padding:4px 0 16px; cursor:pointer; font-family:inherit;
+  }
+  .pcard{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:22px; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+  .card-head-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px; }
+  .hw-pill{
+    flex-shrink:0; background:var(--warn-soft); border:1px solid #ecdcae; border-radius:11px;
+    padding:7px 13px; text-align:center;
+  }
+  .hw-pill .hw-label{ display:block; font-size:.6rem; text-transform:uppercase; letter-spacing:.05em; color:#a3822e; }
+  .hw-pill .hw-value{ display:block; font-size:.92rem; font-weight:700; color:#6b5a2e; letter-spacing:.02em; margin-top:1px; }
+  .pname-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:2px;}
+  .pname-input{ font-size:1.2rem; font-weight:700; border:none; padding:2px 0; background:transparent; width:100%; }
+  .pname-input:focus{ outline:none; border-bottom:1.5px solid var(--accent); }
+  .delete-link{ font-size:.74rem; color:var(--accent); background:var(--accent-soft); border:none; cursor:pointer; font-family:inherit; flex-shrink:0; padding:6px 10px; border-radius:20px; font-weight:600; }
+  .code-input{ font-size:.82rem; color:#928d84; border:none; background:transparent; padding:0; width:100%; font-family:inherit; }
+  .code-input:focus{ outline:none; }
+
+  .section-label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.07em; color:#a39c8d; font-weight:700; margin:22px 0 10px; }
+  .section-label:first-of-type{ margin-top:16px; }
+
+  .sizepick-row select{ font-size:.9rem; padding:11px 12px; }
+  .batchcode-display{ font-size:.78rem; color:#928d84; margin-top:8px; }
+  .batchcode-display b{ color:#55504a; font-weight:600; }
+
+  .note-box{ margin-top:12px; background:var(--warn-soft); border:1px solid #ecdcae; border-radius:11px; padding:11px 13px; font-size:.78rem; color:var(--warn); line-height:1.45; }
+
+  .fields-row{ display:flex; gap:12px; margin-top:12px; }
+  .fld{ flex:1; }
+  .fld label{ display:flex; justify-content:space-between; align-items:baseline; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:#a39c8d; margin-bottom:6px; }
+  .fld label a{ color:var(--accent); text-transform:none; letter-spacing:0; font-size:.72rem; cursor:pointer; text-decoration:underline; }
+  .fld input{ font-size:1.05rem; font-weight:600; text-align:center; padding:11px; border-radius:10px; }
+  .fld input.missing{ border-color:var(--accent); background:var(--accent-soft); }
+  .fld .readonly-box{
+    font-size:1.05rem; font-weight:600; text-align:center; padding:11px; border-radius:10px;
+    border:1.5px solid var(--line); background:#f6f2e9; color:var(--ink);
+  }
+  .fld .readonly-box.missing{ border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
+
+  .divider{ border:none; border-top:1px dashed var(--line); margin:22px 0; }
+
+  .cartons-label{ font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:#4a6b46; font-weight:700; margin-bottom:9px; }
+  .cartons-input{
+    font-size:1.7rem; font-weight:700; text-align:center; padding:16px; border-radius:14px;
+    border:2px solid #bcd4b6; background:var(--good-soft); color:var(--good);
+  }
+  .cartons-input::placeholder{ color:#a3bf9c; font-weight:400; }
+
+  .result-box{ margin-top:18px; background:var(--good-soft); border:1px solid #cfe0cc; border-radius:14px; padding:18px; text-align:center; }
+  .result-box .rlabel{ font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:#4a6b46; font-weight:700; }
+  .result-box .rvalue{ font-size:2.1rem; font-weight:800; color:var(--good); margin:5px 0; }
+  .result-box .rsub{ font-size:.78rem; color:#5a7a56; line-height:1.6; }
+
+  .save-pill{ text-align:center; font-size:.75rem; color:var(--good); margin-top:12px; opacity:0; transition:opacity .3s; font-weight:600; }
+  .save-pill.show{ opacity:1; }
+  .footer-note{ margin-top:18px; padding:12px 15px; background:#fbf5e8; border:1px solid #ecdcae; border-radius:11px; font-size:.76rem; color:#6b5a2e; line-height:1.5; }
+
+  .new-form{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:22px; display:flex; flex-direction:column; gap:14px; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+  .new-form label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:#a39c8d; margin-bottom:5px; display:block; font-weight:700; }
+  .btn-row{ display:flex; gap:10px; margin-top:6px; }
+  .btn{ flex:1; padding:13px; border-radius:11px; font-size:.95rem; font-weight:600; cursor:pointer; font-family:inherit; border:1.5px solid var(--ink); }
+  .btn.primary{ background:var(--ink); color:#fff; box-shadow:0 2px 6px rgba(0,0,0,.12); }
+  .btn.secondary{ background:#fff; color:var(--ink); }
+
+  .tsintro{ font-size:.82rem; color:#75706a; margin:0 0 16px; line-height:1.5; }
+  .tscard{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+  .tscard .ts-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .tscard .ts-size-input{ font-size:.98rem; font-weight:700; border:none; background:transparent; padding:2px 0; width:100%; font-family:inherit; }
+  .tscard .ts-size-input:focus{ outline:none; border-bottom:1.5px solid var(--accent); }
+  .tscard .ts-count{ font-size:.72rem; color:#a39c8d; margin-top:2px; }
+  .tscard .fields-row{ margin-top:12px; }
+  .tscard .note-box{ margin-top:12px; }
+  .tscard .delete-link{ padding:5px 10px; }
+
+  @media print{
+    header p, header .nav-row, .search-wrap, .toolbar-secondary, .add-new-btn, .back-btn, .delete-link, .save-pill{ display:none !important; }
+    body{ background:#fff; }
+    main{ padding:0 6px; }
+    .prow, .tscard, .cgroup{ break-inside:avoid; border-color:#999; cursor:default; }
+    .cgroup.collapsed .cgroup-list{ display:block !important; }
+    .cgroup.collapsed .chev{ transform:none; }
+    .pcard{ border-color:#999; }
+    .cartons-input{ border-color:#999; background:#fff; color:#000; }
+    .result-box{ border-color:#999; background:#fff; }
+    .result-box .rvalue{ color:#000; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Boxes of Trays Calculator</h1>
+  <p>Pick a product, confirm cartons made, get boxes of trays used. Trays/box is set once per tray size and shared by every product that uses it.</p>
+  <div class="nav-row">
+    <button type="button" class="nav-btn active" id="navProducts">Products</button>
+    <button type="button" class="nav-btn" id="navSizes">Tray Sizes</button>
+  </div>
+  <div class="toolbar-secondary">
+    <button type="button" class="icon-btn" id="importBtn">Import</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none;">
+    <button type="button" class="icon-btn" id="exportJsonBtn">Export JSON</button>
+    <button type="button" class="icon-btn" id="exportXlsxBtn">Export Excel</button>
+    <button type="button" class="icon-btn" id="printBtn">Print</button>
+  </div>
+</header>
+
+<main id="main"><div class="empty-msg">Loading...</div></main>
+
+<script>
+const SEED_TRAY_SIZES = [
+{"id":1,"size":"150x220x70mm","batchCode":null,"traysPerBox":null,"note":null},
+{"id":2,"size":"8x6x40mm","batchCode":"5018032337 / 5018107612","traysPerBox":680,"note":null},
+{"id":3,"size":"9x7x38mm","batchCode":null,"traysPerBox":null,"note":null},
+{"id":4,"size":"11x7x40mm (Kebab tray)","batchCode":"13941209","traysPerBox":400,"note":"Kebab tray."},
+{"id":15,"size":"11x7x40mm (Kofta tray)","batchCode":"390115","traysPerBox":95,"note":"Kofta tray. Same nominal dimensions as the Kebab tray above but a different physical tray/box \u2014 confirmed a different trays/box figure."},
+{"id":5,"size":"9x7x60mm","batchCode":null,"traysPerBox":null,"note":null},
+{"id":6,"size":"9x7x40mm","batchCode":"5018120677","traysPerBox":null,"note":"This batch code was labelled '1kg Sausage' (512 trays/box) on the original sheet, but that label doesn't match any product using this size \u2014 verify before entering a trays/box value here."},
+{"id":7,"size":"9x5x50mm","batchCode":"5018043353 / 5018138626","traysPerBox":680,"note":null},
+{"id":8,"size":"11x7x30mm","batchCode":null,"traysPerBox":null,"note":"No confirmed trays/box for this exact size. A record for an 11x?x40mm tray (~400/box, 'MB Trays', see that size below) exists but the last dimension doesn't match \u2014 don't assume it's the same."},
+{"id":9,"size":"262x150x40mm","batchCode":"101134365","traysPerBox":3000,"note":"Batch code was originally transcribed against 262x130x40mm \u2014 likely a misread digit. Confirm 3000/box against the physical box."},
+{"id":10,"size":"9x7x45mm","batchCode":"5018075641","traysPerBox":544,"note":null},
+{"id":11,"size":"9x5x30mm","batchCode":"5018023447","traysPerBox":680,"note":null},
+{"id":12,"size":"11x?x40mm (unclear)","batchCode":"613313","traysPerBox":400,"note":"Middle dimension was unclear on the original sheet ('MB Trays'). Not linked to any product \u2014 confirm the size before assigning it to one."},
+{"id":13,"size":"133x224mm","batchCode":"101054418","traysPerBox":680,"note":"From the original 'Finest Twin Burger' record \u2014 no current product uses this size."},
+{"id":14,"size":"170x223mm","batchCode":"5017950836","traysPerBox":512,"note":"From an unlabelled record \u2014 no current product uses this size."}
+];
+
+const SEED_PRODUCTS = [
+{"id":1,"customer":"ALDI","name":"Aldi Beef Meatloaf","code":"FG0260","traySizeId":1,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":2,"customer":"ALDI","name":"FF Pork & Beef Cheesy Bratwurst","code":"FG2648","traySizeId":2,"traysPerCarton":12,"traysPerBox":null,"note":null},
+{"id":3,"customer":"ALDI","name":"FF Beef, Tomato & Mozzarella Meatballs","code":"FG2655","traySizeId":3,"traysPerCarton":9,"traysPerBox":null,"note":null},
+{"id":4,"customer":"ALDI","name":"ALDI Lamb Kofta","code":"FG6356","traySizeId":15,"traysPerCarton":12,"traysPerBox":null,"note":null},
+{"id":5,"customer":"ALDI","name":"ALDI Beef Kofta","code":"FG8232","traySizeId":15,"traysPerCarton":12,"traysPerBox":null,"note":null},
+{"id":6,"customer":"ALDI","name":"Aldi Specially Selected Beef Garlic & Parsley Sausages","code":"FG3003","traySizeId":5,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":7,"customer":"ALDI","name":"ALDI Italian Pork & Beef Sausages","code":"FG3519","traySizeId":5,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":8,"customer":"ALDI","name":"Aldi Specially Selected Pork & Pepper Gourmet Sausages","code":"FG5562","traySizeId":2,"traysPerCarton":12,"traysPerBox":null,"note":null},
+{"id":9,"customer":"ALDI","name":"Aldi Specially Selected Chicken, Fetta & Parsley Gourmet Sausages","code":"FG5579","traySizeId":2,"traysPerCarton":12,"traysPerBox":null,"note":null},
+{"id":10,"customer":"COLES","name":"Coles Beef Rissoles Classic","code":"FG7182","traySizeId":6,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":11,"customer":"COLES","name":"Coles Chicken Burgers, Zucchini & Cheddar Cheese","code":"FG6798","traySizeId":7,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":12,"customer":"COLES","name":"Coles Beef and Pork Meatballs","code":"FG2825","traySizeId":8,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":13,"customer":"COLES","name":"Coles Beef and Thyme Burgers","code":"FG6249","traySizeId":7,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":14,"customer":"COLES","name":"Coles Beef Kebabs","code":"FG3829","traySizeId":4,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":15,"customer":"COLES","name":"Coles Lamb Kebabs","code":"FG2087","traySizeId":4,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":16,"customer":"COLES","name":"Coles Beef Smash Burger","code":"FG4438","traySizeId":6,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":17,"customer":"COLES","name":"Coles Beef Stacker Burger","code":"FG4421","traySizeId":7,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":18,"customer":"COLES","name":"Coles Classic Beef Burger","code":"FG1998","traySizeId":7,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":19,"customer":"COLES","name":"Coles Finest Beef Brisket Burger","code":"FG6232","traySizeId":9,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":20,"customer":"COLES","name":"Coles Finest Meatballs with Australian Pinot & Roasted Garlic","code":"FG4785","traySizeId":10,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":21,"customer":"COLES","name":"Coles Finest Beef Thick & Juicy Burger","code":"FG3219","traySizeId":11,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":22,"customer":"COLES","name":"Coles Finest Mediterranean Lamb Burger","code":"FG4452","traySizeId":11,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":23,"customer":"COLES","name":"Graze Grass Fed Beef Meatballs","code":"FG6277","traySizeId":10,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":24,"customer":"COLES","name":"Graze Grass Fed Beef Burgers","code":"FG5092","traySizeId":7,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":25,"customer":"QUITELIKE","name":"QuiteLike Garlic & Thyme Meatballs","code":"QL0001","traySizeId":6,"traysPerCarton":4,"traysPerBox":null,"note":null},
+{"id":26,"customer":"QUITELIKE","name":"QuiteLike Thick & Juicy Burger","code":"QL0002","traySizeId":11,"traysPerCarton":6,"traysPerBox":null,"note":null},
+{"id":27,"customer":"UNVERIFIED","name":"Sausage 500g trays","code":"5018032337","traySizeId":2,"traysPerCarton":null,"traysPerBox":null,"note":null},
+{"id":28,"customer":"UNVERIFIED","name":"1kg Sausage","code":"5018120677","traySizeId":6,"traysPerCarton":null,"traysPerBox":null,"note":null},
+{"id":29,"customer":"UNVERIFIED","name":"MB Trays","code":"613313","traySizeId":12,"traysPerCarton":null,"traysPerBox":null,"note":null},
+{"id":30,"customer":"UNVERIFIED","name":"Rissoles","code":"101121650","traySizeId":null,"traysPerCarton":null,"traysPerBox":340,"note":"No pack configuration was recorded, so this has its own standalone trays/box rather than a linked tray size. May be the same product as 'Coles Beef Rissoles Classic', but not confirmed."},
+{"id":31,"customer":"UNVERIFIED","name":"Finest Twin Burger","code":"101054418","traySizeId":13,"traysPerCarton":null,"traysPerBox":null,"note":"May be a discontinued line \u2014 not yet confirmed."},
+{"id":32,"customer":"UNVERIFIED","name":"Sausage - Fetta n Oregano","code":"5018107612","traySizeId":2,"traysPerCarton":null,"traysPerBox":null,"note":null},
+{"id":33,"customer":"UNVERIFIED","name":null,"code":"5017950836","traySizeId":14,"traysPerCarton":null,"traysPerBox":null,"note":"No product name was written next to this code on the original sheet. Please verify before use."}
+];
+
+const STORAGE_TS_KEY = 'trays-calc-sizes';
+const STORAGE_P_KEY = 'trays-calc-products-v2';
+let traySizes = [];
+let products = [];
+let nextTsId = 1;
+let nextPId = 1;
+let currentTab = 'products';
+const main = document.getElementById('main');
+
+// Use Claude's storage when this runs inside a Claude chat; otherwise fall back
+// to the browser's own local storage (needed once this is installed/hosted as
+// its own standalone app, where window.storage doesn't exist).
+const hasClaudeStorage = (typeof window.storage !== 'undefined') && window.storage && typeof window.storage.get === 'function';
+
+async function storageGet(key){
+  if(hasClaudeStorage){
+    try{ return await window.storage.get(key, true); }
+    catch(err){ console.error('Claude storage read failed', err); return null; }
+  }
+  try{
+    const v = localStorage.getItem(key);
+    return v !== null ? { value: v } : null;
+  }catch(err){ console.error('Local storage read failed', err); return null; }
+}
+async function storageSet(key, value){
+  if(hasClaudeStorage){
+    try{ await window.storage.set(key, value, true); return true; }
+    catch(err){ console.error('Claude storage write failed', err); return false; }
+  }
+  try{ localStorage.setItem(key, value); return true; }
+  catch(err){ console.error('Local storage write failed', err); return false; }
+}
+
+function normalizeNameStr(str){
+  return (str || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+// Same backfill approach as migrateTraySizes, but for the "customer" field on
+// products (needed for grouping). Matches by id first, falls back to matching
+// by product name text if ids have drifted. Never overwrites an existing value.
+function migrateProducts(){
+  let migrated = false;
+  products.forEach(p => {
+    if(!('customer' in p)){
+      let seedMatch = SEED_PRODUCTS.find(seed => seed.id === p.id);
+      if(!seedMatch && p.name){
+        seedMatch = SEED_PRODUCTS.find(seed => seed.name && normalizeNameStr(seed.name) === normalizeNameStr(p.name));
+      }
+      p.customer = seedMatch ? seedMatch.customer : 'UNVERIFIED';
+      migrated = true;
+    }
+  });
+  return migrated;
+}
+
+function normalizeSizeStr(str){
+  return (str || '').toLowerCase().replace(/mm/g, '').replace(/\s+/g, '').trim();
+}
+
+// Fills in any fields added since data was last saved/exported (e.g. batchCode)
+// using the matching seed entry, without touching anything already saved.
+// Matches by id first, then falls back to matching by the size text itself
+// (covers cases where ids have drifted after edits, or an older export is imported).
+// Only fills truly-missing keys - never overwrites a value the person already set,
+// including an intentionally-cleared (blank) one.
+function migrateTraySizes(){
+  let migrated = false;
+  traySizes.forEach(s => {
+    if(!('batchCode' in s)){
+      let seedMatch = SEED_TRAY_SIZES.find(seed => seed.id === s.id);
+      if(!seedMatch){
+        seedMatch = SEED_TRAY_SIZES.find(seed => normalizeSizeStr(seed.size) === normalizeSizeStr(s.size));
+      }
+      s.batchCode = seedMatch ? seedMatch.batchCode : null;
+      migrated = true;
+    }
+  });
+  return migrated;
+}
+
+async function init(){
+  try{
+    const tsRes = await storageGet(STORAGE_TS_KEY);
+    const pRes = await storageGet(STORAGE_P_KEY);
+    traySizes = (tsRes && tsRes.value) ? JSON.parse(tsRes.value) : SEED_TRAY_SIZES.map(function(s){ return Object.assign({}, s); });
+    products = (pRes && pRes.value) ? JSON.parse(pRes.value) : SEED_PRODUCTS.map(function(p){ return Object.assign({}, p); });
+    if(!tsRes || !tsRes.value) await persistTS();
+    if(!pRes || !pRes.value) await persistP();
+  }catch(err){
+    traySizes = SEED_TRAY_SIZES.map(function(s){ return Object.assign({}, s); });
+    products = SEED_PRODUCTS.map(function(p){ return Object.assign({}, p); });
+  }
+
+  if(migrateTraySizes()) await persistTS();
+  if(migrateProducts()) await persistP();
+
+  nextTsId = Math.max(0, ...traySizes.map(s => s.id || 0)) + 1;
+  nextPId = Math.max(0, ...products.map(p => p.id || 0)) + 1;
+  renderProducts();
+}
+
+async function persistTS(){
+  const ok = await storageSet(STORAGE_TS_KEY, JSON.stringify(traySizes));
+  if(!ok) alert('Could not save changes. If this keeps happening, your browser may be blocking local storage (e.g. private/incognito mode).');
+}
+async function persistP(){
+  const ok = await storageSet(STORAGE_P_KEY, JSON.stringify(products));
+  if(!ok) alert('Could not save changes. If this keeps happening, your browser may be blocking local storage (e.g. private/incognito mode).');
+}
+
+function esc(str){
+  if(str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function displayName(p){ return p.name || ('Unlabeled (' + (p.code || '\u2014') + ')'); }
+function traysPerBoxFor(p){
+  if(p.traySizeId){
+    const ts = traySizes.find(s => s.id === p.traySizeId);
+    return ts ? ts.traysPerBox : null;
+  }
+  return p.traysPerBox;
+}
+function sizeLabelFor(p){
+  if(p.traySizeId){
+    const ts = traySizes.find(s => s.id === p.traySizeId);
+    return ts ? ts.size : null;
+  }
+  return null;
+}
+
+function setTab(tab){
+  currentTab = tab;
+  document.getElementById('navProducts').classList.toggle('active', tab === 'products');
+  document.getElementById('navSizes').classList.toggle('active', tab === 'sizes');
+  if(tab === 'products') renderProducts(); else renderSizes();
+}
+document.getElementById('navProducts').addEventListener('click', () => setTab('products'));
+document.getElementById('navSizes').addEventListener('click', () => setTab('sizes'));
+
+const CUSTOMER_ORDER = ["ALDI", "COLES", "QUITELIKE", "UNVERIFIED", "OTHER"];
+const CATEGORY_ORDER = ["Burgers", "Meatballs", "Kebabs", "Rissoles", "Sausages", "Koftas", "Meatloaf", "Other"];
+
+function productIcon(name){
+  const n = (name||'').toLowerCase();
+  if(n.includes('kebab')) return '\u{1F962}';
+  if(n.includes('meatball')) return '\u{1F958}';
+  if(n.includes('burger')) return '\u{1F354}';
+  if(n.includes('rissole')) return '\u{1F969}';
+  if(n.includes('sausage') || n.includes('bratwurst')) return '\u{1F32D}';
+  if(n.includes('kofta')) return '\u{1F356}';
+  if(n.includes('meatloaf')) return '\u{1F356}';
+  return '\u{1F96B}';
+}
+function productCategory(name){
+  const n = (name||'').toLowerCase();
+  if(n.includes('kebab')) return 'Kebabs';
+  if(n.includes('meatball')) return 'Meatballs';
+  if(n.includes('burger')) return 'Burgers';
+  if(n.includes('rissole')) return 'Rissoles';
+  if(n.includes('sausage') || n.includes('bratwurst')) return 'Sausages';
+  if(n.includes('kofta')) return 'Koftas';
+  if(n.includes('meatloaf')) return 'Meatloaf';
+  return 'Other';
+}
+function groupByCustomer(list){
+  const groups = {};
+  list.forEach(p => {
+    const c = p.customer || 'UNVERIFIED';
+    if(!groups[c]) groups[c] = [];
+    groups[c].push(p);
+  });
+  return groups;
+}
+
+function productRowHTML(p){
+  const tpb = traysPerBoxFor(p);
+  const size = sizeLabelFor(p);
+  return `
+    <button type="button" class="prow" data-id="${p.id}">
+      <span class="prow-icon">${productIcon(p.name)}</span>
+      <span class="prow-body">
+        <span class="pname${p.name?'':' empty'}">${esc(displayName(p))}</span>
+        <span class="pmeta">
+          ${p.code ? esc(p.code) : ''}
+          ${size ? ' &middot; '+esc(size) : ''}
+          ${(!p.traysPerCarton || !tpb) ? '<span class="missing-pill">needs figures</span>' : ''}
+          ${p.note ? '<span class="dot"></span>' : ''}
+        </span>
+      </span>
+      <span class="chevron">&rsaquo;</span>
+    </button>`;
+}
+
+function renderProducts(){
+  main.innerHTML = `
+    <div class="search-wrap"><input id="search" type="text" placeholder="Search product or code..." autocomplete="off"></div>
+    <div class="plist" id="plist"></div>
+    <button type="button" class="add-new-btn" id="addNewBtn">+ Add a product not listed</button>
+  `;
+  const searchEl = document.getElementById('search');
+  const plist = document.getElementById('plist');
+
+  function draw(){
+    const q = searchEl.value.trim().toLowerCase();
+    const filtered = products.filter(p => !q || displayName(p).toLowerCase().includes(q) || (p.code||'').toLowerCase().includes(q));
+    if(filtered.length === 0){
+      plist.innerHTML = '<div class="empty-msg">No matches. Try a different search, or add it below.</div>';
+      return;
+    }
+
+    const groups = groupByCustomer(filtered);
+    const order = CUSTOMER_ORDER.filter(c => groups[c]);
+    plist.innerHTML = order.map(customer => {
+      const items = [...groups[customer]].sort((a,b) => displayName(a).localeCompare(displayName(b)));
+      let listHTML;
+      if(items.length > 8){
+        const byCat = {};
+        items.forEach(p => {
+          const cat = productCategory(p.name);
+          if(!byCat[cat]) byCat[cat] = [];
+          byCat[cat].push(p);
+        });
+        const catOrder = CATEGORY_ORDER.filter(c => byCat[c]);
+        listHTML = catOrder.map(cat => `
+          <div class="subcat-head">${cat}</div>
+          ${byCat[cat].map(productRowHTML).join('')}
+        `).join('');
+      } else {
+        listHTML = items.map(productRowHTML).join('');
+      }
+      const badgeClass = customer.toLowerCase();
+      return `
+        <div class="cgroup" data-customer="${customer}">
+          <div class="cgroup-head" data-toggle="${customer}">
+            <span class="chev">&#9662;</span>
+            <span class="badge ${badgeClass}">${customer}</span>
+            <span class="gcount">${items.length} product${items.length===1?'':'s'}</span>
+          </div>
+          <div class="cgroup-list">${listHTML}</div>
+        </div>`;
+    }).join('');
+
+    plist.querySelectorAll('.cgroup-head').forEach(h => {
+      h.addEventListener('click', () => h.closest('.cgroup').classList.toggle('collapsed'));
+    });
+    plist.querySelectorAll('.prow').forEach(btn => {
+      btn.addEventListener('click', () => renderCalculator(products.find(p => p.id == btn.dataset.id)));
+    });
+  }
+  draw();
+  searchEl.addEventListener('input', draw);
+  document.getElementById('addNewBtn').addEventListener('click', renderNewForm);
+}
+
+function renderNewForm(){
+  const sizeOptions = traySizes.map(s => `<option value="${s.id}">${esc(s.size)}${s.traysPerBox?(' ('+s.traysPerBox+'/box)'):' (no trays/box set)'}</option>`).join('');
+  main.innerHTML = `
+    <button type="button" class="back-btn" id="backBtn">&larr; Cancel</button>
+    <div class="new-form">
+      <div><label>Product name</label><input id="f-name" type="text" placeholder="e.g. Coles Classic Beef Burger"></div>
+      <div><label>Code (optional)</label><input id="f-code" type="text" placeholder="e.g. FG1998"></div>
+      <div>
+        <label>Tray size</label>
+        <select id="f-size">
+          <option value="">- No tray size / set manually -</option>
+          ${sizeOptions}
+          <option value="__new__">+ Add a new tray size...</option>
+        </select>
+      </div>
+      <div class="fields-row">
+        <div class="fld"><label>Trays / Carton</label><input id="f-tpc" type="number" min="0" step="1"></div>
+        <div class="fld" id="f-tpb-wrap"><label>Trays / Box</label><input id="f-tpb" type="number" min="0" step="1"></div>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn secondary" id="cancelBtn">Cancel</button>
+        <button type="button" class="btn primary" id="createBtn">Add product</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('backBtn').addEventListener('click', renderProducts);
+  document.getElementById('cancelBtn').addEventListener('click', renderProducts);
+  document.getElementById('f-size').addEventListener('change', async (e) => {
+    if(e.target.value === '__new__'){
+      const sizeName = prompt('New tray size (e.g. 9 x 5 x 50mm):');
+      if(sizeName && sizeName.trim()){
+        const newSize = { id: nextTsId++, size: sizeName.trim(), batchCode: null, traysPerBox: null, note: null };
+        traySizes.push(newSize);
+        await persistTS();
+        const opt = document.createElement('option');
+        opt.value = newSize.id; opt.textContent = newSize.size + ' (no trays/box set)';
+        e.target.insertBefore(opt, e.target.lastElementChild);
+        e.target.value = newSize.id;
+      } else {
+        e.target.value = '';
+      }
+    }
+    document.getElementById('f-tpb-wrap').style.display = e.target.value ? 'none' : 'block';
+  });
+  document.getElementById('createBtn').addEventListener('click', async () => {
+    const name = document.getElementById('f-name').value.trim();
+    const code = document.getElementById('f-code').value.trim();
+    const sizeVal = document.getElementById('f-size').value;
+    const tpc = document.getElementById('f-tpc').value.trim();
+    const tpb = document.getElementById('f-tpb').value.trim();
+    const p = {
+      id: nextPId++,
+      name: name || null,
+      code: code || null,
+      customer: 'UNVERIFIED',
+      traySizeId: sizeVal ? Number(sizeVal) : null,
+      traysPerCarton: tpc ? Number(tpc) : null,
+      traysPerBox: sizeVal ? null : (tpb ? Number(tpb) : null),
+      note: null
+    };
+    products.push(p);
+    await persistP();
+    renderCalculator(p);
+  });
+}
+
+function computeAndRender(p){
+  const tpc = parseFloat(p.traysPerCarton);
+  const tpb = parseFloat(traysPerBoxFor(p));
+  const cartonsEl = document.getElementById('cartonsInput');
+  const resultValueEl = document.getElementById('resultValue');
+  const resultSubEl = document.getElementById('resultSub');
+  const cartons = parseFloat(cartonsEl.value);
+
+  if(!cartonsEl.value || isNaN(cartons)){
+    resultValueEl.textContent = '\u2014';
+    resultSubEl.textContent = 'Enter the number of cartons made.';
+    return;
+  }
+  if(isNaN(tpc) || isNaN(tpb) || tpb === 0){
+    resultValueEl.textContent = '\u2014';
+    resultSubEl.textContent = 'Fill in both Trays/Carton and Trays/Box above to calculate.';
+    return;
+  }
+  const traysUsed = cartons * tpc;
+  const boxesUsed = traysUsed / tpb;
+  resultValueEl.textContent = boxesUsed.toLocaleString(undefined,{maximumFractionDigits:2});
+  resultSubEl.innerHTML = `${cartons.toLocaleString()} cartons &times; ${tpc} trays/carton = ${traysUsed.toLocaleString()} trays used<br>&divide; ${tpb.toLocaleString()} trays/box = boxes of trays used`;
+}
+
+function renderCalculator(p){
+  if(!p){ renderProducts(); return; }
+  const tpb = traysPerBoxFor(p);
+  const linkedSize = p.traySizeId ? traySizes.find(s => s.id === p.traySizeId) : null;
+  const sizeOptions = traySizes.map(s => `<option value="${s.id}" ${p.traySizeId===s.id?'selected':''}>${esc(s.size)}${s.traysPerBox?(' ('+s.traysPerBox+'/box)'):' (no trays/box set)'}</option>`).join('');
+
+  const tpbFieldHTML = p.traySizeId
+    ? `<div class="fld">
+         <label>Trays / Box <a id="editSizeLink">edit size &rsaquo;</a></label>
+         <div class="readonly-box${!tpb?' missing':''}">${tpb ?? '\u2014'}</div>
+       </div>`
+    : `<div class="fld">
+         <label>Trays / Box</label>
+         <input id="tpbInput" type="number" min="0" step="1" class="${!tpb?'missing':''}" value="${p.traysPerBox ?? ''}" placeholder="e.g. 680">
+       </div>`;
+
+  main.innerHTML = `
+    <button type="button" class="back-btn" id="backBtn">&larr; All products</button>
+    <div class="pcard">
+      <div class="card-head-row">
+        <div style="flex:1;min-width:0;">
+          <select id="customerSelect" class="badge-select ${(p.customer||'unverified').toLowerCase()}">
+            <option value="ALDI" ${p.customer==='ALDI'?'selected':''}>ALDI</option>
+            <option value="COLES" ${p.customer==='COLES'?'selected':''}>COLES</option>
+            <option value="QUITELIKE" ${p.customer==='QUITELIKE'?'selected':''}>QUITELIKE</option>
+            <option value="UNVERIFIED" ${(!p.customer||p.customer==='UNVERIFIED')?'selected':''}>UNVERIFIED</option>
+          </select>
+          <div class="pname-row" style="margin-top:8px;">
+            <input id="nameInput" class="pname-input" type="text" value="${esc(p.name || '')}" placeholder="Product name">
+          </div>
+          <input id="codeInput" class="code-input" type="text" value="${esc(p.code || '')}" placeholder="Code (optional)">
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+          <button type="button" class="delete-link" id="deleteBtn">Remove</button>
+          ${linkedSize && linkedSize.batchCode ? `<div class="hw-pill"><span class="hw-label">Batch Code</span><span class="hw-value">${esc(linkedSize.batchCode)}</span></div>` : ''}
+        </div>
+      </div>
+      <div class="section-label">Packaging</div>
+      <div class="sizepick-row">
+        <label>Tray size</label>
+        <select id="sizeSelect">
+          <option value="">- No tray size / set trays-per-box manually -</option>
+          ${sizeOptions}
+          <option value="__new__">+ Add a new tray size...</option>
+        </select>
+      </div>
+
+      ${p.note ? `<div class="note-box">${esc(p.note)}</div>` : ''}
+      ${linkedSize && linkedSize.note ? `<div class="note-box">Tray size note: ${esc(linkedSize.note)}</div>` : ''}
+
+      <div class="fields-row">
+        <div class="fld">
+          <label>Trays / Carton</label>
+          <input id="tpcInput" type="number" min="0" step="1" class="${!p.traysPerCarton?'missing':''}" value="${p.traysPerCarton ?? ''}" placeholder="e.g. 6">
+        </div>
+        ${tpbFieldHTML}
+      </div>
+
+      <div class="section-label">Calculator</div>
+      <div class="cartons-label">Cartons made (enter manually)</div>
+      <input id="cartonsInput" class="cartons-input" type="number" min="0" step="1" placeholder="0" inputmode="numeric">
+
+      <div class="result-box">
+        <div class="rlabel">Boxes of trays used</div>
+        <div class="rvalue" id="resultValue">\u2014</div>
+        <div class="rsub" id="resultSub">Enter the number of cartons made.</div>
+      </div>
+      <div class="save-pill" id="savePill">Saved</div>
+      <div class="footer-note">Trays/Carton and Batch Code/Trays-per-Box come from this product's linked tray size, so fixing a figure once updates every product sharing that size.</div>
+    </div>
+  `;
+
+  document.getElementById('backBtn').addEventListener('click', renderProducts);
+  document.getElementById('deleteBtn').addEventListener('click', async () => {
+    if(!confirm(`Remove "${displayName(p)}"? This can't be undone.`)) return;
+    products = products.filter(x => x.id !== p.id);
+    await persistP();
+    renderProducts();
+  });
+
+  async function saveField(key, value){
+    const idx = products.findIndex(x => x.id === p.id);
+    products[idx][key] = value;
+    p[key] = value;
+    await persistP();
+    flashSaved();
+  }
+  function flashSaved(){
+    const pill = document.getElementById('savePill');
+    pill.classList.add('show');
+    setTimeout(() => pill.classList.remove('show'), 1000);
+  }
+
+  document.getElementById('nameInput').addEventListener('change', e => saveField('name', e.target.value.trim() || null));
+  document.getElementById('customerSelect').addEventListener('change', async e => {
+    await saveField('customer', e.target.value);
+    renderCalculator(p);
+  });
+  document.getElementById('codeInput').addEventListener('change', e => saveField('code', e.target.value.trim() || null));
+  document.getElementById('tpcInput').addEventListener('change', e => {
+    saveField('traysPerCarton', e.target.value ? Number(e.target.value) : null);
+    e.target.classList.toggle('missing', !e.target.value);
+    computeAndRender(p);
+  });
+
+  const tpbInput = document.getElementById('tpbInput');
+  if(tpbInput){
+    tpbInput.addEventListener('change', e => {
+      saveField('traysPerBox', e.target.value ? Number(e.target.value) : null);
+      e.target.classList.toggle('missing', !e.target.value);
+      computeAndRender(p);
+    });
+  }
+  const editSizeLink = document.getElementById('editSizeLink');
+  if(editSizeLink){
+    editSizeLink.addEventListener('click', () => { setTab('sizes'); });
+  }
+
+  document.getElementById('sizeSelect').addEventListener('change', async (e) => {
+    if(e.target.value === '__new__'){
+      const sizeName = prompt('New tray size (e.g. 9 x 5 x 50mm):');
+      if(sizeName && sizeName.trim()){
+        const newSize = { id: nextTsId++, size: sizeName.trim(), batchCode: null, traysPerBox: null, note: null };
+        traySizes.push(newSize);
+        await persistTS();
+        await saveField('traySizeId', newSize.id);
+        await saveField('traysPerBox', null);
+        renderCalculator(p);
+      } else {
+        e.target.value = p.traySizeId || '';
+      }
+      return;
+    }
+    const newId = e.target.value ? Number(e.target.value) : null;
+    await saveField('traySizeId', newId);
+    if(newId) await saveField('traysPerBox', null);
+    renderCalculator(p);
+  });
+
+  document.getElementById('cartonsInput').addEventListener('input', () => computeAndRender(p));
+  computeAndRender(p);
+  window.scrollTo(0,0);
+}
+
+function renderSizes(){
+  const sorted = [...traySizes].sort((a,b) => a.size.localeCompare(b.size));
+  const countFor = id => products.filter(p => p.traySizeId === id).length;
+
+  main.innerHTML = `
+    <p class="tsintro">Set the batch code and trays-per-box once per size &mdash; every product using that size updates automatically.</p>
+    <div id="tslist"></div>
+    <button type="button" class="add-new-btn" id="addSizeBtn">+ Add a tray size</button>
+  `;
+  const tslist = document.getElementById('tslist');
+
+  function draw(){
+    tslist.innerHTML = sorted.map(s => `
+      <div class="tscard" data-id="${s.id}">
+        <div class="ts-top">
+          <div style="flex:1;">
+            <input class="ts-size-input" data-field="size" value="${esc(s.size)}" placeholder="e.g. 9 x 5 x 50mm">
+            <div class="ts-count">${countFor(s.id)} product${countFor(s.id)===1?'':'s'} using this size</div>
+          </div>
+          <button type="button" class="delete-link" data-delete="${s.id}">Remove</button>
+        </div>
+        <div class="fields-row">
+          <div class="fld">
+            <label>Batch Code</label>
+            <input type="text" data-field="batchCode" value="${esc(s.batchCode || '')}" placeholder="e.g. 5018043353">
+          </div>
+          <div class="fld">
+            <label>Trays / Box</label>
+            <input type="number" min="0" step="1" data-field="traysPerBox" class="${!s.traysPerBox?'missing':''}" value="${s.traysPerBox ?? ''}" placeholder="e.g. 680">
+          </div>
+        </div>
+        ${s.note ? `<div class="note-box">${esc(s.note)}</div>` : ''}
+      </div>
+    `).join('');
+
+    tslist.querySelectorAll('.tscard').forEach(card => {
+      const id = Number(card.dataset.id);
+      card.querySelector('[data-field="size"]').addEventListener('change', async (e) => {
+        const s = traySizes.find(x => x.id === id);
+        s.size = e.target.value.trim() || s.size;
+        await persistTS();
+        draw();
+      });
+      card.querySelector('[data-field="batchCode"]').addEventListener('change', async (e) => {
+        const s = traySizes.find(x => x.id === id);
+        s.batchCode = e.target.value.trim() || null;
+        await persistTS();
+      });
+      card.querySelector('[data-field="traysPerBox"]').addEventListener('change', async (e) => {
+        const s = traySizes.find(x => x.id === id);
+        s.traysPerBox = e.target.value ? Number(e.target.value) : null;
+        e.target.classList.toggle('missing', !e.target.value);
+        await persistTS();
+      });
+      card.querySelector('[data-delete]').addEventListener('click', async () => {
+        const used = countFor(id);
+        const msg = used > 0
+          ? `${used} product${used===1?' uses':'s use'} this tray size. Removing it will unlink ${used===1?'that product':'those products'} (their trays/box will need to be set again). Continue?`
+          : 'Remove this tray size?';
+        if(!confirm(msg)) return;
+        traySizes = traySizes.filter(x => x.id !== id);
+        products.forEach(p => { if(p.traySizeId === id) p.traySizeId = null; });
+        await persistTS();
+        await persistP();
+        renderSizes();
+      });
+    });
+  }
+  draw();
+
+  document.getElementById('addSizeBtn').addEventListener('click', async () => {
+    const sizeName = prompt('New tray size (e.g. 9 x 5 x 50mm):');
+    if(!sizeName || !sizeName.trim()) return;
+    traySizes.push({ id: nextTsId++, size: sizeName.trim(), batchCode: null, traysPerBox: null, note: null });
+    await persistTS();
+    renderSizes();
+  });
+}
+
+init();
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+function exportJSON(){
+  const blob = new Blob([JSON.stringify({traySizes: traySizes, products: products}, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `trays-calc-backup-${todayStr()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportXLSX(){
+  if(typeof XLSX === 'undefined'){
+    alert('The Excel export library did not load (needs an internet connection). Try again, or use Export JSON instead.');
+    return;
+  }
+  const productRows = products.map(p => ({
+    'Product': p.name || '',
+    'Code': p.code || '',
+    'Tray Size': sizeLabelFor(p) || '',
+    'Trays per Carton': p.traysPerCarton ?? '',
+    'Trays per Box': traysPerBoxFor(p) ?? '',
+    'Note': p.note || '',
+  }));
+  const sizeRows = traySizes.map(s => ({
+    'Tray Size': s.size,
+    'Batch Code': s.batchCode || '',
+    'Trays per Box': s.traysPerBox ?? '',
+    'Products Using This Size': products.filter(p => p.traySizeId === s.id).length,
+    'Note': s.note || '',
+  }));
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.json_to_sheet(productRows);
+  ws1['!cols'] = [{wch:38},{wch:14},{wch:16},{wch:14},{wch:12},{wch:50}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Products');
+  const ws2 = XLSX.utils.json_to_sheet(sizeRows);
+  ws2['!cols'] = [{wch:20},{wch:16},{wch:12},{wch:22},{wch:50}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Tray Sizes');
+  XLSX.writeFile(wb, `trays-calc-${todayStr()}.xlsx`);
+}
+
+// Merges an imported list into the existing one by id: matching items are
+// updated field-by-field with the imported values (imported wins per field,
+// but any field the imported item doesn't have is left untouched), and
+// anything imported that doesn't already exist is added. Nothing is deleted.
+function mergeById(existing, incoming){
+  const result = existing.map(item => ({...item}));
+  const indexById = new Map(result.map((item, idx) => [item.id, idx]));
+  incoming.forEach(item => {
+    if(indexById.has(item.id)){
+      const idx = indexById.get(item.id);
+      result[idx] = { ...result[idx], ...item };
+    } else {
+      result.push({...item});
+      indexById.set(item.id, result.length - 1);
+    }
+  });
+  return result;
+}
+
+async function handleImport(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if(!parsed.traySizes || !parsed.products) throw new Error('Missing traySizes/products');
+    const sizeCount = parsed.traySizes.length, prodCount = parsed.products.length;
+    if(!confirm(`Merge ${sizeCount} tray size(s) and ${prodCount} product(s) from this file into your current list?\n\nMatching items (same product) will be updated with the imported values. Anything new will be added. Nothing already here will be deleted.`)){
+      e.target.value = '';
+      return;
+    }
+    traySizes = mergeById(traySizes, parsed.traySizes);
+    products = mergeById(products, parsed.products);
+    migrateTraySizes();
+    migrateProducts();
+    nextTsId = Math.max(0, ...traySizes.map(s => s.id || 0)) + 1;
+    nextPId = Math.max(0, ...products.map(p => p.id || 0)) + 1;
+    await persistTS();
+    await persistP();
+    setTab('products');
+  }catch(err){
+    alert('Could not read that file - expecting a JSON backup exported from this app.');
+  }
+  e.target.value = '';
+}
+
+document.getElementById('exportJsonBtn').addEventListener('click', exportJSON);
+document.getElementById('exportXlsxBtn').addEventListener('click', exportXLSX);
+document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+document.getElementById('importBtn').addEventListener('click', ()=> document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', handleImport);
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
