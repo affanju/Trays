@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trays-calc-v4';
+const CACHE_NAME = 'trays-calc-v6';
 const ASSETS = [
   './',
   './index.html',

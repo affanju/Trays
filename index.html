@@ -258,7 +258,7 @@ const SEED_PRODUCTS = [
 {"id":31,"customer":"UNVERIFIED","name":"Finest Twin Burger","code":"101054418","traySizeId":13,"traysPerCarton":null,"traysPerBox":null,"note":"May be a discontinued line \u2014 not yet confirmed."},
 {"id":32,"customer":"UNVERIFIED","name":"Sausage - Fetta n Oregano","code":"5018107612","traySizeId":2,"traysPerCarton":null,"traysPerBox":null,"note":null},
 {"id":33,"customer":"UNVERIFIED","name":null,"code":"5017950836","traySizeId":14,"traysPerCarton":null,"traysPerBox":null,"note":"No product name was written next to this code on the original sheet. Please verify before use."},
-{"id":34,"customer":"ALDI","name":"FF Korean BBQ Beef Burgers","code":"FG2709","traySizeId":7,"traysPerCarton":6,"traysPerBox":null,"note":null}
+{"id":34,"customer":"ALDI","name":"FF Korean BBQ Beef Burgers","code":"FG2709","traySizeId":7,"traysPerCarton":12,"traysPerBox":null,"note":null}
 ];
 
 const STORAGE_TS_KEY = 'trays-calc-sizes';
@@ -354,19 +354,54 @@ async function init(){
     products = SEED_PRODUCTS.map(function(p){ return Object.assign({}, p); });
   }
 
+  // Compute working next-ids now, so the "add missing" steps below can safely
+  // assign fresh ids to anything they insert.
+  nextTsId = Math.max(0, ...traySizes.map(s => s.id || 0)) + 1;
+  nextPId = Math.max(0, ...products.map(p => p.id || 0)) + 1;
+
   // One-time correction: earlier data had Coles Beef and Pork Meatballs (FG2825)
   // linked to an incorrect 11x7x30mm tray. The QMX-004 packaging matrix confirms
   // it's actually 11x7x40mm, matching the historical "MB Trays" record. Retarget
   // it to the corrected size (id 12) and drop the now-obsolete 11x7x30mm entry
   // if nothing else is using it.
   const fixedMeatball = fixMeatballTraySize();
+  const fixedKorean = fixKoreanBurgerCartons();
 
-  if(migrateTraySizes() || fixedMeatball) await persistTS();
-  if(migrateProducts() || fixedMeatball) await persistP();
+  // Adds any tray size / product that exists in the built-in catalog but is
+  // missing from a previously-saved list (e.g. a product added to the app
+  // after this device's data was first saved). Matches tray sizes by size
+  // text and products by code, so nothing gets duplicated.
+  const addedSizes = addMissingSeedTraySizes();
+  const addedProducts = addMissingSeedProducts();
 
-  nextTsId = Math.max(0, ...traySizes.map(s => s.id || 0)) + 1;
-  nextPId = Math.max(0, ...products.map(p => p.id || 0)) + 1;
+  if(migrateTraySizes() || fixedMeatball || addedSizes) await persistTS();
+  if(migrateProducts() || fixedMeatball || fixedKorean || addedProducts) await persistP();
+
   renderProducts();
+}
+
+function addMissingSeedTraySizes(){
+  let added = false;
+  SEED_TRAY_SIZES.forEach(seed => {
+    const exists = traySizes.some(s => normalizeSizeStr(s.size) === normalizeSizeStr(seed.size));
+    if(!exists){
+      traySizes.push({ ...seed, id: nextTsId++ });
+      added = true;
+    }
+  });
+  return added;
+}
+
+function addMissingSeedProducts(){
+  let added = false;
+  SEED_PRODUCTS.forEach(seed => {
+    const exists = products.some(p => p.code && seed.code && p.code === seed.code);
+    if(!exists){
+      products.push({ ...seed, id: nextPId++ });
+      added = true;
+    }
+  });
+  return added;
 }
 
 function fixMeatballTraySize(){
@@ -384,6 +419,18 @@ function fixMeatballTraySize(){
     }
   }
   return changed;
+}
+
+// One-time correction: FF Korean BBQ Beef Burgers (FG2709) was added with the
+// wrong trays/carton (6 instead of 12). Only corrects that specific mistaken
+// value - leaves it alone if you've already edited it to something else.
+function fixKoreanBurgerCartons(){
+  const p = products.find(x => x.code === 'FG2709');
+  if(p && p.traysPerCarton === 6){
+    p.traysPerCarton = 12;
+    return true;
+  }
+  return false;
 }
 
 async function persistTS(){
@@ -928,11 +975,14 @@ async function handleImport(e){
     }
     traySizes = mergeById(traySizes, parsed.traySizes);
     products = mergeById(products, parsed.products);
+    nextTsId = Math.max(0, ...traySizes.map(s => s.id || 0)) + 1;
+    nextPId = Math.max(0, ...products.map(p => p.id || 0)) + 1;
     migrateTraySizes();
     migrateProducts();
     fixMeatballTraySize();
-    nextTsId = Math.max(0, ...traySizes.map(s => s.id || 0)) + 1;
-    nextPId = Math.max(0, ...products.map(p => p.id || 0)) + 1;
+    fixKoreanBurgerCartons();
+    addMissingSeedTraySizes();
+    addMissingSeedProducts();
     await persistTS();
     await persistP();
     setTab('products');
