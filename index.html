@@ -263,8 +263,12 @@ const SEED_PRODUCTS = [
 
 const STORAGE_TS_KEY = 'trays-calc-sizes';
 const STORAGE_P_KEY = 'trays-calc-products-v2';
+const STORAGE_DELETED_P_KEY = 'trays-calc-deleted-products';
+const STORAGE_DELETED_TS_KEY = 'trays-calc-deleted-sizes';
 let traySizes = [];
 let products = [];
+let deletedProductIds = [];
+let deletedTraySizeIds = [];
 let nextTsId = 1;
 let nextPId = 1;
 let currentTab = 'products';
@@ -345,13 +349,19 @@ async function init(){
   try{
     const tsRes = await storageGet(STORAGE_TS_KEY);
     const pRes = await storageGet(STORAGE_P_KEY);
+    const delPRes = await storageGet(STORAGE_DELETED_P_KEY);
+    const delTsRes = await storageGet(STORAGE_DELETED_TS_KEY);
     traySizes = (tsRes && tsRes.value) ? JSON.parse(tsRes.value) : SEED_TRAY_SIZES.map(function(s){ return Object.assign({}, s); });
     products = (pRes && pRes.value) ? JSON.parse(pRes.value) : SEED_PRODUCTS.map(function(p){ return Object.assign({}, p); });
+    deletedProductIds = (delPRes && delPRes.value) ? JSON.parse(delPRes.value) : [];
+    deletedTraySizeIds = (delTsRes && delTsRes.value) ? JSON.parse(delTsRes.value) : [];
     if(!tsRes || !tsRes.value) await persistTS();
     if(!pRes || !pRes.value) await persistP();
   }catch(err){
     traySizes = SEED_TRAY_SIZES.map(function(s){ return Object.assign({}, s); });
     products = SEED_PRODUCTS.map(function(p){ return Object.assign({}, p); });
+    deletedProductIds = [];
+    deletedTraySizeIds = [];
   }
 
   // Compute working next-ids now, so the "add missing" steps below can safely
@@ -380,9 +390,21 @@ async function init(){
   renderProducts();
 }
 
+function seedIdForProduct(p){
+  let seed = SEED_PRODUCTS.find(s => s.id === p.id);
+  if(!seed && p.code) seed = SEED_PRODUCTS.find(s => s.code === p.code);
+  return seed ? seed.id : null;
+}
+function seedIdForTraySize(s){
+  let seed = SEED_TRAY_SIZES.find(x => x.id === s.id);
+  if(!seed) seed = SEED_TRAY_SIZES.find(x => normalizeSizeStr(x.size) === normalizeSizeStr(s.size));
+  return seed ? seed.id : null;
+}
+
 function addMissingSeedTraySizes(){
   let added = false;
   SEED_TRAY_SIZES.forEach(seed => {
+    if(deletedTraySizeIds.includes(seed.id)) return;
     const exists = traySizes.some(s => normalizeSizeStr(s.size) === normalizeSizeStr(seed.size));
     if(!exists){
       traySizes.push({ ...seed, id: nextTsId++ });
@@ -395,6 +417,7 @@ function addMissingSeedTraySizes(){
 function addMissingSeedProducts(){
   let added = false;
   SEED_PRODUCTS.forEach(seed => {
+    if(deletedProductIds.includes(seed.id)) return;
     const exists = products.some(p => p.code && seed.code && p.code === seed.code);
     if(!exists){
       products.push({ ...seed, id: nextPId++ });
@@ -441,6 +464,8 @@ async function persistP(){
   const ok = await storageSet(STORAGE_P_KEY, JSON.stringify(products));
   if(!ok) alert('Could not save changes. If this keeps happening, your browser may be blocking local storage (e.g. private/incognito mode).');
 }
+async function persistDeletedProducts(){ await storageSet(STORAGE_DELETED_P_KEY, JSON.stringify(deletedProductIds)); }
+async function persistDeletedTraySizes(){ await storageSet(STORAGE_DELETED_TS_KEY, JSON.stringify(deletedTraySizeIds)); }
 
 function esc(str){
   if(str === null || str === undefined) return '';
@@ -751,6 +776,11 @@ function renderCalculator(p){
   document.getElementById('backBtn').addEventListener('click', renderProducts);
   document.getElementById('deleteBtn').addEventListener('click', async () => {
     if(!confirm(`Remove "${displayName(p)}"? This can't be undone.`)) return;
+    const seedId = seedIdForProduct(p);
+    if(seedId !== null && !deletedProductIds.includes(seedId)){
+      deletedProductIds.push(seedId);
+      await persistDeletedProducts();
+    }
     products = products.filter(x => x.id !== p.id);
     await persistP();
     renderProducts();
@@ -880,6 +910,12 @@ function renderSizes(){
           ? `${used} product${used===1?' uses':'s use'} this tray size. Removing it will unlink ${used===1?'that product':'those products'} (their trays/box will need to be set again). Continue?`
           : 'Remove this tray size?';
         if(!confirm(msg)) return;
+        const sizeObj = traySizes.find(x => x.id === id);
+        const seedId = sizeObj ? seedIdForTraySize(sizeObj) : null;
+        if(seedId !== null && !deletedTraySizeIds.includes(seedId)){
+          deletedTraySizeIds.push(seedId);
+          await persistDeletedTraySizes();
+        }
         traySizes = traySizes.filter(x => x.id !== id);
         products.forEach(p => { if(p.traySizeId === id) p.traySizeId = null; });
         await persistTS();
