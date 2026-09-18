@@ -209,16 +209,16 @@
 <script>
 const SEED_TRAY_SIZES = [
 {"id":1,"size":"150x220x70mm","batchCode":null,"traysPerBox":null,"note":null},
-{"id":2,"size":"8x6x40mm","batchCode":"5018032337 / 5018107612","traysPerBox":680,"note":null},
+{"id":2,"size":"8x6x40mm","batchCode":"5018032337 / 5018107612","supplierCode":"Cryovac 100932089 (Clear Sausage Tray)","traysPerBox":680,"note":null},
 {"id":3,"size":"9x7x38mm","batchCode":null,"traysPerBox":null,"note":null},
 {"id":4,"size":"11x7x40mm (Kebab tray)","batchCode":"13941209","traysPerBox":400,"note":"Kebab tray."},
 {"id":15,"size":"11x7x40mm (Kofta tray)","batchCode":"390115","traysPerBox":95,"note":"Kofta tray. Same nominal dimensions as the Kebab tray above but a different physical tray/box \u2014 confirmed a different trays/box figure."},
 {"id":5,"size":"9x7x60mm","batchCode":null,"traysPerBox":null,"note":null},
-{"id":6,"size":"9x7x40mm","batchCode":"5018120677","traysPerBox":null,"note":"This batch code was labelled '1kg Sausage' (512 trays/box) on the original sheet, but that label doesn't match any product using this size \u2014 verify before entering a trays/box value here."},
-{"id":7,"size":"9x5x50mm","batchCode":"5018043353 / 5018138626","traysPerBox":680,"note":null},
+{"id":6,"size":"9x7x40mm","batchCode":"5018120677","supplierCode":"Cryovac 100916526 / 100919942 (Rissole Tray); Plantic 7-CL-R+-MB-09740 (Clear Meatball Tray)","traysPerBox":null,"note":"This batch code was labelled '1kg Sausage' (512 trays/box) on the original sheet, but that label doesn't match any product using this size \u2014 verify before entering a trays/box value here. The packaging matrix also shows multiple distinct supplier tray SKUs at this nominal size (different suppliers/uses), so it's possible more than one physical tray genuinely shares this label \u2014 worth keeping in mind if the eventual trays/box figure doesn't hold consistently across products."},
+{"id":7,"size":"9x5x50mm","batchCode":"5018043353 / 5018138626","supplierCode":"Plantic 9550 / 7-CL-RE-09550 (Burger Tray)","traysPerBox":680,"note":null},
 {"id":9,"size":"262x150x40mm","batchCode":"101134365","traysPerBox":3000,"note":"Batch code was originally transcribed against 262x130x40mm \u2014 likely a misread digit. Confirm 3000/box against the physical box."},
 {"id":10,"size":"9x7x45mm","batchCode":"5018075641","traysPerBox":544,"note":null},
-{"id":11,"size":"9x5x30mm","batchCode":"5018023447","traysPerBox":680,"note":null},
+{"id":11,"size":"9x5x30mm","batchCode":"5018023447","supplierCode":"Cryovac 101047110 (Clear 2 Pack Burger Tray)","traysPerBox":680,"note":null},
 {"id":12,"size":"11x7x40mm (Meatball tray)","batchCode":"613313","traysPerBox":400,"note":"Confirmed by the QMX-004 packaging matrix: Coles Beef and Pork Meatballs uses an 11x7x40mm tray, matching the historical 'MB Trays' record (code 613313, ~400/box) whose middle dimension was previously unclear."},
 {"id":13,"size":"133x224mm","batchCode":"101054418","traysPerBox":680,"note":"From the original 'Finest Twin Burger' record \u2014 no current product uses this size."},
 {"id":14,"size":"170x223mm","batchCode":"5017950836","traysPerBox":512,"note":"From an unlabelled record \u2014 no current product uses this size."}
@@ -340,12 +340,15 @@ function normalizeSizeStr(str){
 function migrateTraySizes(){
   let migrated = false;
   traySizes.forEach(s => {
-    if(!('batchCode' in s)){
+    const missingBatch = !('batchCode' in s);
+    const missingSupplier = !('supplierCode' in s);
+    if(missingBatch || missingSupplier){
       let seedMatch = SEED_TRAY_SIZES.find(seed => seed.id === s.id);
       if(!seedMatch){
         seedMatch = SEED_TRAY_SIZES.find(seed => normalizeSizeStr(seed.size) === normalizeSizeStr(s.size));
       }
-      s.batchCode = seedMatch ? seedMatch.batchCode : null;
+      if(missingBatch){ s.batchCode = seedMatch ? seedMatch.batchCode : null; }
+      if(missingSupplier){ s.supplierCode = seedMatch ? (seedMatch.supplierCode || null) : null; }
       migrated = true;
     }
   });
@@ -649,7 +652,7 @@ function renderNewForm(){
     if(e.target.value === '__new__'){
       const sizeName = prompt('New tray size (e.g. 9 x 5 x 50mm):');
       if(sizeName && sizeName.trim()){
-        const newSize = { id: nextTsId++, size: sizeName.trim(), batchCode: null, traysPerBox: null, note: null };
+        const newSize = { id: nextTsId++, size: sizeName.trim(), batchCode: null, supplierCode: null, traysPerBox: null, note: null };
         traySizes.push(newSize);
         await persistTS();
         const opt = document.createElement('option');
@@ -835,7 +838,7 @@ function renderCalculator(p){
     if(e.target.value === '__new__'){
       const sizeName = prompt('New tray size (e.g. 9 x 5 x 50mm):');
       if(sizeName && sizeName.trim()){
-        const newSize = { id: nextTsId++, size: sizeName.trim(), batchCode: null, traysPerBox: null, note: null };
+        const newSize = { id: nextTsId++, size: sizeName.trim(), batchCode: null, supplierCode: null, traysPerBox: null, note: null };
         traySizes.push(newSize);
         await persistTS();
         await saveField('traySizeId', newSize.id);
@@ -862,7 +865,7 @@ function renderSizes(){
   const countFor = id => products.filter(p => p.traySizeId === id).length;
 
   main.innerHTML = `
-    <p class="tsintro">Set the batch code and trays-per-box once per size &mdash; every product using that size updates automatically.</p>
+    <p class="tsintro">Set the batch code, supplier reorder code, and trays-per-box once per size &mdash; every product using that size updates automatically.</p>
     <div id="tslist"></div>
     <button type="button" class="add-new-btn" id="addSizeBtn">+ Add a tray size</button>
   `;
@@ -888,6 +891,12 @@ function renderSizes(){
             <input type="number" min="0" step="1" data-field="traysPerBox" class="${!s.traysPerBox?'missing':''}" value="${s.traysPerBox ?? ''}" placeholder="e.g. 680">
           </div>
         </div>
+        <div class="fields-row">
+          <div class="fld" style="flex:1 1 100%;">
+            <label>Supplier Reorder Code</label>
+            <input type="text" data-field="supplierCode" value="${esc(s.supplierCode || '')}" placeholder="e.g. Cryovac 100932089">
+          </div>
+        </div>
         ${s.note ? `<div class="note-box">${esc(s.note)}</div>` : ''}
       </div>
     `).join('');
@@ -903,6 +912,11 @@ function renderSizes(){
       card.querySelector('[data-field="batchCode"]').addEventListener('change', async (e) => {
         const s = traySizes.find(x => x.id === id);
         s.batchCode = e.target.value.trim() || null;
+        await persistTS();
+      });
+      card.querySelector('[data-field="supplierCode"]').addEventListener('change', async (e) => {
+        const s = traySizes.find(x => x.id === id);
+        s.supplierCode = e.target.value.trim() || null;
         await persistTS();
       });
       card.querySelector('[data-field="traysPerBox"]').addEventListener('change', async (e) => {
@@ -936,7 +950,7 @@ function renderSizes(){
   document.getElementById('addSizeBtn').addEventListener('click', async () => {
     const sizeName = prompt('New tray size (e.g. 9 x 5 x 50mm):');
     if(!sizeName || !sizeName.trim()) return;
-    traySizes.push({ id: nextTsId++, size: sizeName.trim(), batchCode: null, traysPerBox: null, note: null });
+    traySizes.push({ id: nextTsId++, size: sizeName.trim(), batchCode: null, supplierCode: null, traysPerBox: null, note: null });
     await persistTS();
     renderSizes();
   });
@@ -971,6 +985,7 @@ function exportXLSX(){
   const sizeRows = traySizes.map(s => ({
     'Tray Size': s.size,
     'Batch Code': s.batchCode || '',
+    'Supplier Reorder Code': s.supplierCode || '',
     'Trays per Box': s.traysPerBox ?? '',
     'Products Using This Size': products.filter(p => p.traySizeId === s.id).length,
     'Note': s.note || '',
@@ -980,7 +995,7 @@ function exportXLSX(){
   ws1['!cols'] = [{wch:38},{wch:14},{wch:16},{wch:14},{wch:12},{wch:50}];
   XLSX.utils.book_append_sheet(wb, ws1, 'Products');
   const ws2 = XLSX.utils.json_to_sheet(sizeRows);
-  ws2['!cols'] = [{wch:20},{wch:16},{wch:12},{wch:22},{wch:50}];
+  ws2['!cols'] = [{wch:20},{wch:16},{wch:34},{wch:12},{wch:22},{wch:50}];
   XLSX.utils.book_append_sheet(wb, ws2, 'Tray Sizes');
   XLSX.writeFile(wb, `trays-calc-${todayStr()}.xlsx`);
 }
